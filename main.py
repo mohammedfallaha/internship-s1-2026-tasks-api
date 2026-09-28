@@ -1,5 +1,7 @@
+#Step 1: 
+
 #اجلب لي اداة FastAPI من مكتبة fastapi
-from fastapi import FastAPI 
+from fastapi import FastAPI , HTTPException
 
 #"أنشئ لي تطبيق FastAPI جديد، واسمه الظاهر Tasks API."
 app = FastAPI(title="Tasks API")
@@ -14,6 +16,11 @@ def hello() -> dict[str, str]:
     return {"message": "hello"}
 
 
+
+
+
+
+#Step 3:
 #"من مكتبة Pydantic، أعطني أداتين: BaseModel و Field."
 
 from pydantic import BaseModel, Field
@@ -50,6 +57,11 @@ next_id = 1
 
 
 
+
+
+
+#Step 4:
+
 #انشاء مهمة جديدة | 201 تعني انه تم انشاء شيئ جديد
 @app.post("/tasks", status_code=201)
 
@@ -72,7 +84,29 @@ def create_task(body: TaskCreate) -> Task:
     next_id += 1
     return task
 
-
+#اذا اجاك جيت شغل الدالة الي تحت هاي
 @app.get("/tasks")
-def list_tasks() -> list[Task]:
+def list_tasks() -> list[Task]: 
+
+#list[Task]=
+#[Task(id=1, title="Learn Python", done=False),Task(id=2, title="Learn FastAPI", done=True)]
+
+    # رجعلي القيم الموجودة في الديكشنري
     return list(tasks.values())
+    #tasks = { 
+    #1: Task1,
+    #2: Task2,
+    #3: Task3}
+
+
+
+
+
+#Step 5:
+
+@app.get("/tasks/{task_id}")
+def get_task(task_id: int) -> Task:
+    task = tasks.get(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="task not found")
+    return task
