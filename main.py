@@ -36,6 +36,14 @@ class TaskCreate(BaseModel):
 class Task(TaskCreate):
     #id عرفنا
     id: int
+
+#step 6 p1 | للتعديل انه ممكن تعديل العنوان والحالة 
+class TaskUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    done: bool | None = None
+
+
+
 # انشأ ديكشيناري ليخزن البيانات 
 tasks: dict[int, Task] = {}
 next_id = 1
@@ -110,3 +118,30 @@ def get_task(task_id: int) -> Task:
     if task is None:
         raise HTTPException(status_code=404, detail="task not found")
     return task
+
+
+#Step 6 p2: انشاء ايند بوينت
+@app.patch("/tasks/{task_id}")
+
+#تاخذ رقم المهمة من الرابط وما يريد المستخدم تغييره
+def update_task(task_id: int, body: TaskUpdate) -> Task:
+
+    #جلب المهمة من خلال رقمها 
+    task = get_task(task_id)
+
+    # تطبيق التغييرات على المهمة
+    changes = body.model_dump(exclude_unset=True)
+    #exclude_unset=True --> تعطي الحقول المرسلة فقط بدون None
+    #Changes = {"title": None,"done": True} X
+    #Changes = {"title": "Master FastAPI",done": True}
+
+    #انسخ التاسك ومن ثم طبق التعديلات على التاسك المنسوخ
+    tasks[task_id] = task.model_copy(update=changes)
+    return tasks[task_id]
+
+
+#Step 7: انشاء ايند بوينت لحذف المهمة
+@app.delete("/tasks/{task_id}", status_code=204)
+def delete_task(task_id: int) -> None:
+    get_task(task_id)
+    del tasks[task_id]
