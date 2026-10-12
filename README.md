@@ -32,3 +32,13 @@ uv run ruff format .
 
 uv run ruff check .
 
+# Run the database This starts the database container and creates or updates the database schema to match the latest migration.
+
+Start PostgreSQL using Docker Compose:
+
+docker compose up -d
+
+Apply database migrations:
+
+uv run alembic upgrade head
+
