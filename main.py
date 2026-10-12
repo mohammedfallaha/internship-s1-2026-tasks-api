@@ -75,9 +75,16 @@ def create_task(body: TaskCreate, db: DbSession) -> Task:
 
 
 @app.get("/tasks")
-def list_tasks(db: DbSession) -> list[Task]:
-    rows = db.scalars(select(TaskRow).order_by(TaskRow.id))
-    return [Task.model_validate(row) for row in rows]
+def list_tasks(
+    db: DbSession, done: bool | None = None, q: str | None = None
+) -> list[Task]:
+    stmt = select(TaskRow).order_by(TaskRow.id)
+    if done is not None:
+        stmt = stmt.where(TaskRow.done == done)
+    if q is not None:
+        stmt = stmt.where(TaskRow.title.ilike(f"%{q}%"))
+    return [Task.model_validate(row) for row in db.scalars(stmt)]
+
 
 
 def find_task(db: Session, task_id: int) -> TaskRow:
