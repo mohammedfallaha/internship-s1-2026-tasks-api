@@ -1,6 +1,4 @@
-# Step 1:
 
-# اجلب لي اداة FastAPI من مكتبة fastapi
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -9,59 +7,66 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from db import get_db
-from models import TaskRow
+from models import ProjectRow, TaskRow
 
 DbSession = Annotated[Session, Depends(get_db)]
 
-# "أنشئ لي تطبيق FastAPI جديد، واسمه الظاهر Tasks API."
 app = FastAPI(title="Tasks API")
 
 
-# "إذا جاء شخص إلى العنوان /hello باستخدام طريقة GET، أرسله إلى الوظيفة التي سأكتبها بعد قليل."
-# Endpoint يعني انشأ
 @app.get("/hello")
-
-# define \ نقول انها سترجع قاموس من نوع  فقط
 def hello() -> dict[str, str]:
     return {"message": "hello"}
 
 
-# Step 3:
-# "من مكتبة Pydantic، أعطني أداتين: BaseModel و Field."
-
-
-
-# كلاس يرث شروط التحقق من ال BaseModel
 class TaskCreate(BaseModel):
-    # str يعني ان يكون نص داخل خاصية التايتل
     title: str = Field(min_length=1, max_length=200)
-    # bool يعني ان يكون قيمة من نوع منطقي داخل الحقل
     done: bool = False
+    project_id: int | None = None
 
 
-# ورثنا الكلاس واضفنا شيئ يميزه
 class Task(TaskCreate):
     model_config = ConfigDict(from_attributes=True)
-    
-    # id عرفنا
+
     id: int
 
 
-# step 6 p1 | للتعديل انه ممكن تعديل العنوان والحالة
 class TaskUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     done: bool | None = None
 
 
+class ProjectCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
 
-# Step 4:
+
+class Project(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
 
 
-# انشاء مهمة جديدة | 201 تعني انه تم انشاء شيئ جديد
+@app.post("/projects", status_code=201)
+def create_project(body: ProjectCreate, db: DbSession) -> Project:
+    row = ProjectRow(**body.model_dump())
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return Project.model_validate(row)
 
-# عرفنا دالة وتتوقع ان يصل لها البودي المذكور | body.title , body.done
+
+@app.get("/projects")
+def list_projects(db: DbSession) -> list[Project]:
+    rows = db.scalars(select(ProjectRow).order_by(ProjectRow.id))
+    return [Project.model_validate(row) for row in rows]
+
+
 @app.post("/tasks", status_code=201)
 def create_task(body: TaskCreate, db: DbSession) -> Task:
+    if body.project_id is not None:
+        find_project(db, body.project_id)
+
     row = TaskRow(**body.model_dump())
     db.add(row)
     db.commit()
@@ -75,16 +80,17 @@ def list_tasks(db: DbSession) -> list[Task]:
     return [Task.model_validate(row) for row in rows]
 
 
-
-
-
-# Step 5:
-
-
 def find_task(db: Session, task_id: int) -> TaskRow:
     row = db.get(TaskRow, task_id)
     if row is None:
         raise HTTPException(status_code=404, detail="task not found")
+    return row
+
+
+def find_project(db: Session, project_id: int) -> ProjectRow:
+    row = db.get(ProjectRow, project_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="project not found")
     return row
 
 
@@ -107,3 +113,9 @@ def update_task(task_id: int, body: TaskUpdate, db: DbSession) -> Task:
 def delete_task(task_id: int, db: DbSession) -> None:
     db.delete(find_task(db, task_id))
     db.commit()
+
+
+@app.get("/projects/{project_id}/tasks")
+def list_project_tasks(project_id: int, db: DbSession) -> list[Task]:
+    project = find_project(db, project_id)
+    return [Task.model_validate(row) for row in project.tasks]
