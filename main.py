@@ -1,4 +1,3 @@
-
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -84,7 +83,6 @@ def list_tasks(
     if q is not None:
         stmt = stmt.where(TaskRow.title.ilike(f"%{q}%"))
     return [Task.model_validate(row) for row in db.scalars(stmt)]
-
 
 
 def find_task(db: Session, task_id: int) -> TaskRow:
