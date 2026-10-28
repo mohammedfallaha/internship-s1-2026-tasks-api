@@ -25,3 +25,11 @@ class ProjectRow(Base):
     name: Mapped[str] = mapped_column(String(100))
 
     tasks: Mapped[list["TaskRow"]] = relationship(back_populates="project")
+
+
+class UserRow(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
