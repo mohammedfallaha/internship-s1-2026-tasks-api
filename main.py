@@ -1,12 +1,12 @@
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, EmailStr
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-
+from auth import password_hash
 from db import get_db
-from models import ProjectRow, TaskRow
+from models import ProjectRow, TaskRow,UserRow
 
 DbSession = Annotated[Session, Depends(get_db)]
 
@@ -124,3 +124,26 @@ def delete_task(task_id: int, db: DbSession) -> None:
 def list_project_tasks(project_id: int, db: DbSession) -> list[Task]:
     project = find_project(db, project_id)
     return [Task.model_validate(row) for row in project.tasks]
+
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+
+
+class UserRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    email: str
+
+
+@app.post("/auth/register", status_code=201)
+def register(body: UserCreate, db: DbSession) -> UserRead:
+    if db.scalar(select(UserRow).where(UserRow.email == body.email)) is not None:
+        raise HTTPException(status_code=409, detail="email already registered")
+    row = UserRow(email=body.email, password_hash=password_hash.hash(body.password))
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return UserRead.model_validate(row)
