@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, EmailStr
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from auth import create_token, password_hash
+from auth import CurrentUser, create_token, password_hash
 from db import get_db
 from models import ProjectRow, TaskRow,UserRow
 
@@ -165,3 +165,7 @@ def login(body: LoginIn, db: DbSession) -> TokenOut:
     if user is None or not password_hash.verify(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="wrong email or password")
     return TokenOut(access_token=create_token(user.id))
+
+@app.get("/auth/me")
+def me(user: CurrentUser) -> UserRead:
+    return UserRead.model_validate(user)
