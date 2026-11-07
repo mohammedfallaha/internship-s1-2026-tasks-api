@@ -62,11 +62,15 @@ def list_projects(db: DbSession) -> list[Project]:
 
 
 @app.post("/tasks", status_code=201)
-def create_task(body: TaskCreate, db: DbSession) -> Task:
+def create_task(
+    body: TaskCreate,
+    user: CurrentUser,
+    db: DbSession
+) -> Task:
     if body.project_id is not None:
         find_project(db, body.project_id)
 
-    row = TaskRow(**body.model_dump())
+    row = TaskRow(**body.model_dump(), owner_id=user.id)
     db.add(row)
     db.commit()
     db.refresh(row)
@@ -75,20 +79,32 @@ def create_task(body: TaskCreate, db: DbSession) -> Task:
 
 @app.get("/tasks")
 def list_tasks(
-    db: DbSession, done: bool | None = None, q: str | None = None
+    user: CurrentUser,
+    db: DbSession,
+    done: bool | None = None,
+    q: str | None = None
 ) -> list[Task]:
-    stmt = select(TaskRow).order_by(TaskRow.id)
+
+    stmt = select(TaskRow).where(
+        TaskRow.owner_id == user.id
+    ).order_by(TaskRow.id)
+
     if done is not None:
         stmt = stmt.where(TaskRow.done == done)
+
     if q is not None:
         stmt = stmt.where(TaskRow.title.ilike(f"%{q}%"))
+
     return [Task.model_validate(row) for row in db.scalars(stmt)]
 
 
-def find_task(db: Session, task_id: int) -> TaskRow:
+
+def find_task(db: Session, task_id: int, user: UserRow) -> TaskRow:
     row = db.get(TaskRow, task_id)
-    if row is None:
+
+    if row is None or row.owner_id != user.id:
         raise HTTPException(status_code=404, detail="task not found")
+
     return row
 
 
@@ -100,25 +116,31 @@ def find_project(db: Session, project_id: int) -> ProjectRow:
 
 
 @app.get("/tasks/{task_id}")
-def get_task(task_id: int, db: DbSession) -> Task:
-    return Task.model_validate(find_task(db, task_id))
+def get_task(task_id: int, user: CurrentUser, db: DbSession) -> Task:
+    return Task.model_validate(find_task(db, task_id, user))
 
 
 @app.patch("/tasks/{task_id}")
-def update_task(task_id: int, body: TaskUpdate, db: DbSession) -> Task:
-    row = find_task(db, task_id)
+def update_task(
+    task_id: int,
+    body: TaskUpdate,
+    user: CurrentUser,
+    db: DbSession
+) -> Task:
+    row = find_task(db, task_id, user)
+
     for name, value in body.model_dump(exclude_unset=True).items():
         setattr(row, name, value)
+
     db.commit()
     db.refresh(row)
     return Task.model_validate(row)
 
 
 @app.delete("/tasks/{task_id}", status_code=204)
-def delete_task(task_id: int, db: DbSession) -> None:
-    db.delete(find_task(db, task_id))
+def delete_task(task_id: int, user: CurrentUser, db: DbSession) -> None:
+    db.delete(find_task(db, task_id, user))
     db.commit()
-
 
 @app.get("/projects/{project_id}/tasks")
 def list_project_tasks(project_id: int, db: DbSession) -> list[Task]:

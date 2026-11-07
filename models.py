@@ -16,7 +16,10 @@ class TaskRow(Base):
         index=True,
     )
     project: Mapped["ProjectRow | None"] = relationship(back_populates="tasks")
-
+    owner_id: Mapped[int] = mapped_column(
+    ForeignKey("users.id", name="fk_tasks_owner"),
+    index=True
+)
 
 class ProjectRow(Base):
     __tablename__ = "projects"
