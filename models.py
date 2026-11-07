@@ -1,3 +1,4 @@
+
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -16,10 +17,12 @@ class TaskRow(Base):
         index=True,
     )
     project: Mapped["ProjectRow | None"] = relationship(back_populates="tasks")
+
     owner_id: Mapped[int] = mapped_column(
-    ForeignKey("users.id", name="fk_tasks_owner"),
-    index=True
-)
+        ForeignKey("users.id", name="fk_tasks_owner"),
+        index=True,
+    )
+
 
 class ProjectRow(Base):
     __tablename__ = "projects"
@@ -28,6 +31,11 @@ class ProjectRow(Base):
     name: Mapped[str] = mapped_column(String(100))
 
     tasks: Mapped[list["TaskRow"]] = relationship(back_populates="project")
+
+    owner_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", name="fk_projects_owner"),
+        index=True,
+    )
 
 
 class UserRow(Base):
