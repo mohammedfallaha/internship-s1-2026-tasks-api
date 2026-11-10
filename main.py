@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field, EmailStr
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -13,7 +14,12 @@ from models import ProjectRow, TaskRow, UserRow
 DbSession = Annotated[Session, Depends(get_db)]
 
 app = FastAPI(title="Tasks API")
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/hello")
 def hello() -> dict[str, str]:
